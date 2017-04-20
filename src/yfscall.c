@@ -418,6 +418,11 @@ void YfsSymLink(Message* msg, int pid) {
         {ErrorHandler(msg,pid); return;}
 
     /* Get inode of pathname's directory */
+     /* Get pathname's directory */
+    int file_dir_inum = ParsePathDir(msg->data1, pathname);
+    if (file_dir_inum == ERROR)
+       {ErrorHandler(msg,pid); return;}
+   
     struct inode* dir_inode = GetInodeByInum(file_dir_inum);
     if (dir_inode == NULL)
         {ErrorHandler(msg,pid); return;}
