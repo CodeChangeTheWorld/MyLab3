@@ -369,6 +369,7 @@ void YfsUnlink(Message* msg, int pid) {
         goto ERR;
 
     /* Get filename from pathname */
+    {
     int filename_index = GetFileNameIndex(pathname);
     char filename[strlen(pathname) - filename_index + 1];
     memcpy(filename, pathname + filename_index, strlen(pathname) - filename_index);
@@ -377,6 +378,7 @@ void YfsUnlink(Message* msg, int pid) {
     /* Get file inode */
     int file_inum = GetInumByComponentName(dir_inode, filename);
     struct inode* file_inode = GetInodeByInum(file_inum);
+    }
 
     if (file_inode == NULL)
         goto ERR;
@@ -428,14 +430,17 @@ void YfsSymLink(Message* msg, int pid) {
         goto ERR;
 
     /* Check if newname is valid */
+    {
     int filename_index = GetFileNameIndex(newname);
     char filename[strlen(newname) - filename_index + 1];
     memcpy(filename, newname + filename_index, strlen(newname) - filename_index);
     filename[strlen(newname) - filename_index] = '\0';
+    }
+
     if (strcmp(filename, ".") == 0 || strcmp(filename, "..") == 0)
         goto ERR;
     /* Check if newname exists again */
-    inum = GetInumByComponentName(dir_inode, filename);
+    int inum = GetInumByComponentName(dir_inode, filename);
     if (inum)
         goto ERR;
 
@@ -502,13 +507,15 @@ void YfsReadLink(Message* msg, int pid) {
     struct inode* dir_inode = GetInodeByInum(file_dir_inum);
     if (dir_inode == NULL)
         goto ERR;
+    
+    {
 
     /* Get filename from pathname */
     int filename_index = GetFileNameIndex(pathname);
     char filename[strlen(pathname) - filename_index + 1];
     memcpy(filename, pathname + filename_index, strlen(pathname) - filename_index);
     filename[strlen(pathname) - filename_index] = '\0';
-
+    }
     /* Get file inode */
     int file_inum = GetInumByComponentName(dir_inode, filename);
     struct inode* file_inode = GetInodeByInum(file_inum);
@@ -567,10 +574,13 @@ void YfsMkDir(Message* msg, int pid) {
         goto ERR;
 
     /* Check if pathname is valid */
+    {
     int filename_index = GetFileNameIndex(pathname);
     char filename[strlen(pathname) - filename_index + 1];
     memcpy(filename, pathname + filename_index, strlen(pathname) - filename_index);
     filename[strlen(pathname) - filename_index] = '\0';
+    }
+
     if (strcmp(filename, ".") == 0 || strcmp(filename, "..") == 0)
         goto ERR;
     /* Check if pathname exists again */
@@ -634,11 +644,12 @@ void YfsRmDir(Message* msg, int pid) {
         goto ERR;
 
     /* Get directory name from pathname */
+    {
     int filename_index = GetFileNameIndex(pathname);
     char filename[strlen(pathname) - filename_index + 1];
     memcpy(filename, pathname + filename_index, strlen(pathname) - filename_index);
     filename[strlen(pathname) - filename_index] = '\0';
-
+    }
     /* Get child directory inode */
     int inum = GetInumByComponentName(dir_inode, filename);
     struct inode* inode = GetInodeByInum(inum);
