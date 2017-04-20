@@ -356,17 +356,17 @@ void YfsUnlink(Message* msg, int pid) {
     printf("Executing YfsUnlink()\n");
     char pathname[MAXPATHNAMELEN];
     if (CopyFrom(pid, (void*)pathname, msg->addr1, MAXPATHNAMELEN) == ERROR)
-        goto ERR;
+        {ErrorHandler(msg,pid); return;}
 
     /* Get pathname's directory */
     int file_dir_inum = ParsePathDir(msg->data1, pathname);
     if (file_dir_inum == ERROR)
-        goto ERR;
+       {ErrorHandler(msg,pid); return;}
 
     /* Get inode of pathname's directory */
     struct inode* dir_inode = GetInodeByInum(file_dir_inum);
     if (dir_inode == NULL)
-        goto ERR;
+        {ErrorHandler(msg,pid); return;}
 
     /* Get filename from pathname */
     int filename_index = GetFileNameIndex(pathname);
@@ -379,11 +379,11 @@ void YfsUnlink(Message* msg, int pid) {
     struct inode* file_inode = GetInodeByInum(file_inum);
 
     if (file_inode == NULL)
-        goto ERR;
+        {ErrorHandler(msg,pid); return;}
     if (file_inode->type == INODE_DIRECTORY)
-        goto ERR;
+       {ErrorHandler(msg,pid); return;}
     if (DeleteDirEntry(dir_inode, file_dir_inum, file_inum) == ERROR)
-        goto ERR;
+        {ErrorHandler(msg,pid); return;}
 
     if (!(--file_inode->nlink)) {
         RecycleBlocksInInode(file_inum);
@@ -393,11 +393,6 @@ void YfsUnlink(Message* msg, int pid) {
     SetDirty(inode_cache, file_inum);
     Reply((void*)msg, pid);
     return;
-
-    ERR:
-        msg->type = ERROR;
-        Reply((void*)msg, pid);
-        return;
 }
 
 void YfsSymLink(Message* msg, int pid) {
@@ -406,26 +401,26 @@ void YfsSymLink(Message* msg, int pid) {
     char newname[MAXPATHNAMELEN];
 
     if (CopyFrom(pid, (void*)oldname, msg->addr1, MAXPATHNAMELEN) == ERROR)
-        goto ERR;   
+        {ErrorHandler(msg,pid); return;} 
     if (CopyFrom(pid, (void*)newname, msg->addr2, MAXPATHNAMELEN) == ERROR)
-        goto ERR;
+        {ErrorHandler(msg,pid); return;}
     /* Null pathname */
     if (oldname[0] == '\0')
-        goto ERR;
+        {ErrorHandler(msg,pid); return;}
     /* New name existed */
     int new_inum = ParsePathName(msg->data1, newname);
     if (new_inum != Error)
-        goto ERR;
+       {ErrorHandler(msg,pid); return;}
     /* Create new symbol link file */
     /* Check if all directores is valid */
     int dir_inum = ParsePathDir(msg->data1, newname);
     if (dir_inum == ERROR)
-        goto ERR;
+        {ErrorHandler(msg,pid); return;}
 
     /* Get inode of pathname's directory */
     struct inode* dir_inode = GetInodeByInum(file_dir_inum);
     if (dir_inode == NULL)
-        goto ERR;
+        {ErrorHandler(msg,pid); return;}
 
     /* Check if newname is valid */
     int filename_index = GetFileNameIndex(newname);
@@ -433,19 +428,19 @@ void YfsSymLink(Message* msg, int pid) {
     memcpy(filename, newname + filename_index, strlen(newname) - filename_index);
     filename[strlen(newname) - filename_index] = '\0';
     if (strcmp(filename, ".") == 0 || strcmp(filename, "..") == 0)
-        goto ERR;
+        {ErrorHandler(msg,pid); return;}
     /* Check if newname exists again */
     inum = GetInumByComponentName(dir_inode, filename);
     if (inum)
-        goto ERR;
+        {ErrorHandler(msg,pid); return;}
 
     inum = FindFreeInode();
     if (inum == ERROR)
-        goto ERR;
+       {ErrorHandler(msg,pid); return;}
 
     struct new_inode* inode = GetInodeByInum(inum);
     if (inode == NULL)
-            goto ERR;
+        {ErrorHandler(msg,pid); return;}
 
     /* Initialize new inode of symbolic link */
     inode->type = INODE_SYMLINK;
@@ -458,18 +453,18 @@ void YfsSymLink(Message* msg, int pid) {
 
     /* Create directory entry for new inode */
     if (CreateDirEntry(dir_inode, dir_inum, inum, filename) == ERROR)
-        goto ERR;
+        {ErrorHandler(msg,pid); return;}
     
     /* Allocate a new block to store oldname */
     int bnum = AllocateBlockInInode(inode,inum);
     if (bnum == ERROR)
-        goto ERR;
+       {ErrorHandler(msg,pid); return;}
     void* block = GetBlockByBnum(bnum);
     if (block == NULL)
-        goto ERR;
+       {ErrorHandler(msg,pid); return;}
     /* Path name should be stored in one block */
     if (BLOCKSIZE < MAXPATHNAMELEN)
-        goto ERR;
+        {ErrorHandler(msg,pid); return;}
     
     memcpy(block, oldname, sizeof(oldname));
     inode->size = sizeof(oldname);
@@ -489,19 +484,19 @@ void YfsReadLink(Message* msg, int pid) {
     printf("Executing YfsReadLink()\n");
     char pathname[MAXPATHNAMELEN];
     if (CopyFrom(pid, (void*)pathname, msg->addr1, MAXPATHNAMELEN) == ERROR)
-        goto ERR;
+        {ErrorHandler(msg,pid); return;}
 
     int maxLen = msg->data2;
 
     /* Get pathname's directory */
     int file_dir_inum = ParsePathDir(msg->data1, pathname);
     if (file_dir_inum == ERROR)
-        goto ERR;
+        {ErrorHandler(msg,pid); return;}
 
     /* Get inode of pathname's directory */
     struct inode* dir_inode = GetInodeByInum(file_dir_inum);
     if (dir_inode == NULL)
-        goto ERR;
+        {ErrorHandler(msg,pid); return;}
 
     /* Get filename from pathname */
     int filename_index = GetFileNameIndex(pathname);
@@ -514,17 +509,17 @@ void YfsReadLink(Message* msg, int pid) {
     struct inode* file_inode = GetInodeByInum(file_inum);
 
     if (file_inode == NULL)
-        goto ERR;
+        {ErrorHandler(msg,pid); return;}
     if (file_inode->type != INODE_SYMLINK)
-        goto ERR;
+        {ErrorHandler(msg,pid); return;}
 
     /* Oldname should be stored in first block */
     int bnum = file_inode->direct[0];
     if (bnum == 0)
-        goto ERR;
+        {ErrorHandler(msg,pid); return;}
     void* block = GetBlockByBnum(bnum);
     if (block == NULL)
-        goto ERR;
+        {ErrorHandler(msg,pid); return;}
 
     int actualLen = strlen((char *)block);
     /* Oldname length == MAXPATHNAMELEN */
@@ -535,36 +530,31 @@ void YfsReadLink(Message* msg, int pid) {
         maxLen = actualLen;
 
     if (CopyTo(pid, msg->addr2, block, maxLen) == ERROR)
-        goto ERR;
+        {ErrorHandler(msg,pid); return;}
 
     Reply((void*)msg, pid);
     return;
-
-    ERR:
-        msg->type = ERROR;
-        Reply((void*)msg, pid);
-        return;
 }
 
 void YfsMkDir(Message* msg, int pid) {
     printf("Executing YfsMkDir()\n");
     char pathname[MAXPATHNAMELEN];
     if (CopyFrom(pid, (void*)pathname, msg->addr1, MAXPATHNAMELEN) == ERROR)
-        goto ERR;
+        {ErrorHandler(msg,pid); return;}
     /* new name exists */
     int new_inum = ParsePathName(msg->data1, pathname);
     if (new_inum != Error)
-        goto ERR;
+       {ErrorHandler(msg,pid); return;}
 
     /* Check if all directores is valid */
     int dir_inum = ParsePathDir(msg->data1, pathname);
     if (dir_inum == ERROR)
-        goto ERR;
+        {ErrorHandler(msg,pid); return;}
 
     /* Get inode of pathname's directory */
     struct inode* dir_inode = GetInodeByInum(dir_inum);
     if (dir_inode == NULL)
-        goto ERR;
+        {ErrorHandler(msg,pid); return;}
 
     /* Check if pathname is valid */
     int filename_index = GetFileNameIndex(pathname);
@@ -572,19 +562,19 @@ void YfsMkDir(Message* msg, int pid) {
     memcpy(filename, pathname + filename_index, strlen(pathname) - filename_index);
     filename[strlen(pathname) - filename_index] = '\0';
     if (strcmp(filename, ".") == 0 || strcmp(filename, "..") == 0)
-        goto ERR;
+        {ErrorHandler(msg,pid); return;}
     /* Check if pathname exists again */
     inum = GetInumByComponentName(dir_inode, filename);
     if (inum)
-        goto ERR;
+       {ErrorHandler(msg,pid); return;}
 
     inum = FindFreeInode();
     if (inum == ERROR)
-        goto ERR;
+        {ErrorHandler(msg,pid); return;}
 
     struct new_inode* inode = GetInodeByInum(inum);
     if (inode == NULL)
-        goto ERR;
+        {ErrorHandler(msg,pid); return;}
 
     /* Initialize new directory node */
     inode->type = INODE_DIRECTORY;
@@ -600,38 +590,33 @@ void YfsMkDir(Message* msg, int pid) {
 
     /* Parent -> New one */
     if (CreateDirEntry(dir_inode, dir_inum, inum, filename) == ERROR)
-        goto ERR;
+       {ErrorHandler(msg,pid); return;}
     /* New one -> . */
     if (CreateDirEntry(inode, inum, inum, current) == ERROR)
-        goto ERR;
+        {ErrorHandler(msg,pid); return;}
     /* New one -> .. */
     if (CreateDirEntry(inode, inum, dir_inum, parent) == ERROR)
-        goto ERR;
+        {ErrorHandler(msg,pid); return;}
 
     Reply((void*)msg, pid);
-    return;
-
-    ERR:
-        msg->type = ERROR;
-        Reply((void*)msg, pid);
-        return;    
+    return;  
 }
 
 void YfsRmDir(Message* msg, int pid) {
     printf("Executing YfsRmDir()\n");
     char pathname[MAXPATHNAMELEN];
     if (CopyFrom(pid, (void*)pathname, msg->addr1, MAXPATHNAMELEN) == ERROR)
-        goto ERR;    
+        {ErrorHandler(msg,pid); return;} 
 
     /* Get pathname's parent directory */
     int dir_inum = ParsePathDir(msg->data1, pathname);
     if (dir_inum == ERROR)
-        goto ERR;
+        {ErrorHandler(msg,pid); return;}
 
     /* Get inode of pathname's parent directory */
     struct inode* dir_inode = GetInodeByInum(dir_inum);
     if (dir_inode == NULL)
-        goto ERR;
+        {ErrorHandler(msg,pid); return;}
 
     /* Get directory name from pathname */
     int filename_index = GetFileNameIndex(pathname);
@@ -644,17 +629,17 @@ void YfsRmDir(Message* msg, int pid) {
     struct inode* inode = GetInodeByInum(inum);
 
     if (inode == NULL)
-        goto ERR;
+        {ErrorHandler(msg,pid); return;}
     if (inode->type != INODE_DIRECTORY)
-        goto ERR;
+        {ErrorHandler(msg,pid); return;}
 
     /* should contain directories only "." and ".." */
     if (CountDirEntry(inode, inum) != 2)
-        goto ERR;
+        {ErrorHandler(msg,pid); return;}
 
     /* Delete entry from its parent dir */
     if (DeleteDirEntry(dir_inode, dir_inum, inum) == ERROR)
-        goto ERR;
+        {ErrorHandler(msg,pid); return;}
 
     /* Recycle Inode if no more link */
     if (!(--inode->nlink)) {
@@ -664,12 +649,7 @@ void YfsRmDir(Message* msg, int pid) {
 
     SetDirty(inode_cache, inum);
     Reply((void*)msg, pid);
-    return;
-
-    ERR:
-        msg->type = ERROR;
-        Reply((void*)msg, pid);
-        return;
+    return;        
 }
 
 void YfsChDir(Message* msg, int pid) {
@@ -770,4 +750,10 @@ void YfsShutDown(Message* msg, int pid) {
     Reply(msg, pid);
     printf("Yalnix File System is shuting down ...\n");
     Exit(0);
+}
+
+void ErrorHandler(Message* msg, int pid){
+    msg->type = ERROR;
+    Reply((void*)msg, pid);
+    return;
 }
