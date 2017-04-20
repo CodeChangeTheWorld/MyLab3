@@ -409,7 +409,7 @@ void YfsSymLink(Message* msg, int pid) {
         {ErrorHandler(msg,pid); return;}
     /* New name existed */
     int new_inum = ParsePathName(msg->data1, newname);
-    if (new_inum != Error)
+    if (new_inum != ERROR)
        {ErrorHandler(msg,pid); return;}
     /* Create new symbol link file */
     /* Check if all directores is valid */
